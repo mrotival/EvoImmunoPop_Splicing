@@ -505,7 +505,17 @@ odds.ratio(table(max_lFC< -0.5, isDSG_gof & !isDSG_lof))
 ############ Figure S3D ############
 ####################################
 
-# ADD the code for the figure here
+##### Fig S3D
+#### conservation as a function of coding consequence: SE 
+tab=table(PSI_Annot$coding_type, gsub(' (all)', '',PSI_Annot$conserved_site_GerpRS,fixed=T), PSI_Annot$event_type)
+
+tab=table(PSI_Annot$coding_type, PSI_Annot$conserved_site_GerpRS, PSI_Annot$event_type)
+
+color_conserv=c("#A1DAB4","#FEE586","#225EA8")
+par(mar=c(12,4,1,1))
+tabSE=tab[,c('gain of conserved splice site (all)','gain of conserved splice site','non conserved Alternative splice sites'),'SE']
+colnames(tabSE)=c('both conserved','one conserved','non conserved')
+barplot(t(tabSE/apply(tabSE,1,sum)),col=color_conserv,las=3)
 
 ####################################
 ######## END Figure S3D ############

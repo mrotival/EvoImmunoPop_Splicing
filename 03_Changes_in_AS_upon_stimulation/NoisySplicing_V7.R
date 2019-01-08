@@ -333,10 +333,12 @@ axis(2,las=2,at=c(-5,-3,-2,-1,0,1,2),labels=rep('',7))
 ###         Figure 3D           #####
 #####################################
 
-
-# TODO: add this figure 
-
-
+cuts=c(0,1,5,10,50,100,500,1000,25000)
+NoisySplicing_perGene=fread(sprintf('%s/03_Analysis/Splicing/Papier_Splicing/V7/data/TableS2D.txt',HOME))
+p <- ggplot(NoisySplicing_perGene[FPKM>1,],aes(x=factor(condition,levels=condIndex),y= Rate_Noisy_Splicing_perIntron))
+p <- p+facet_grid(~cut(FPKM,cuts))+coord_cartesian(ylim=c(0,1.5))+geom_boxplot(fill=rep(colERC5,7),col='black',outlier.shape=NA,notch=T)
+p <- p+theme_minimal()+ theme(axis.text.x=element_text(angle = -90, hjust = 0))+labs(x='',y='Percentage of Noisy splicing per site')
+p
 
 #####################################
 ###         Figure 3E           #####
