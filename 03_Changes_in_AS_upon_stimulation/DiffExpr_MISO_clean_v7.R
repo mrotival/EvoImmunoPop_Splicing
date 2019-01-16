@@ -11,69 +11,70 @@ GeneAnnot$Chromosome.Name=as.numeric(GeneAnnot$Chromosome.Name)
 GeneAnnot=GeneAnnot[!is.na(GeneAnnot$Chromosome.Name),] # remove alternate chromosomes and unassigned scaffolds
 GeneAnnot$Strand=ifelse(GeneAnnot$Strand>0,'+','-') # change strand from -1,1 to '+','-'
  
- 
+ # load allGOterms table (containing go ids and matching gene ids)
+allGOTerms=as.data.frame(fread('allGOterms_EnsGRC37_13042017.txt'))
+
+GoToTest=list(immuneResponse='GO:0006955',
+	InnateImmuneResponse='GO:0045087',
+	AdaptiveImmuneResponse='GO:0002250',
+	AntiviralResponse='GO:0051607',
+	AntibacterialResponse='GO:0042742',
+	TF_DNAbinding='GO:0003700',
+	development='GO:0032502',
+	olfactory_receptors='GO:0004984')
+
+GoToTest_genes=lapply(GoToTest,function(x){allGOTerms$'Gene stable ID'[allGOTerms$'GO term accession'==x]})
+GoToTest_genes$all=unique(allGOTerms$'Gene stable ID')
+
 library(impute)
 library(VennDiagram)
-
-#pdf(sprintf('%s/03_Analysis/Splicing/Papier_Splicing/MISO_cleaning/TestableGenes_PSI_MISO_V4.pdf',HOME),height=5.8,width=5.8)
-#testable_list=sapply(1:5,function(cond){unique(PSI_Annot[intersect(toKeep,which(PSI_Annot[,paste('Testable',condIndex[cond],sep='_')])),'gene_id'])})
-#names(testable_list)=rep('',5)
-#VD=venn.diagram(testable_list,col=colERC[2*0:4+2],fill=colERC[2*0:4+1],filename=NULL,margin=0.05,main='TestableGenes')
-#grid.newpage()
-#grid.draw(VD)
-#barplot(sapply(testable_list,length),col=colERC5,ylab='Nb Testable',las=2)
-#for(cond in 1:5){
-#	tab=table(PSI_Annot[intersect(toKeep,which(PSI_Annot[,paste('Testable',condIndex[cond],sep='_')])),'event_type'])
-#	barplot(tab,col=colPSI[names(tab)],main=condIndex[cond],ylim=c(0,2000),las=2)
-#	}
-#dev.off()
 
 #################################################################
 ###			Differential splicing upon Stimulation : Test	  ###
 #################################################################
 
 luq=function(x){length(unique(x))}
+By=function(...){x=by(...);y=names(x);x=as.vector(x);names(x)=y;x}
 
 PSI_cond=PSI
 PSI_Annot_cond=PSI_Annot[toKeep,]
-rownames(PSI_cond)=PSI_Annot_cond$event_id
+rownames(PSI_cond)=PSI_Annot$event_id
 
 
-Pval=matrix(1,length(toKeep),5)
-rownames(Pval)=rownames(PSI_Annot)[toKeep]
+Pval=matrix(1,nrow(PSI_Annot),5)
+rownames(Pval)=rownames(PSI_Annot)
 for (cond in 2:5){
 	Pval[,cond]=apply(PSI_cond,1,function(x){P=try(wilcox.test(x[grep('-1',colnames(PSI_cond))],x[grep(paste('-',cond,sep=''),colnames(PSI_cond))])$p.value);if(class(P)=='try-error'){NA}else{P}})
 	}
 
-FDR=Pval
 FDR=matrix(p.adjust(as.numeric(Pval),'fdr'),nrow(Pval),ncol(Pval))
 
-DELTA_PSI=matrix(0,length(toKeep),5)
-rownames(DELTA_PSI)=rownames(PSI_Annot)[toKeep]
+DELTA_PSI=matrix(0,nrow(PSI_Annot),5)
+rownames(DELTA_PSI)=rownames(PSI_Annot)
 for(cond in 2:5){
-	DELTA_PSI[,cond]=PSI_Annot[toKeep,paste('MeanPSI_',condIndex[cond],sep='')]-PSI_Annot[toKeep,paste('MeanPSI_',condIndex[1],sep='')]
+	DELTA_PSI[,cond]=PSI_Annot[,paste('MeanPSI_',condIndex[cond],sep='')]-PSI_Annot[,paste('MeanPSI_',condIndex[1],sep='')]
 }
 
 
-DELTA_DIV=matrix(0,length(toKeep),5)
-rownames(DELTA_PSI)=rownames(PSI_Annot)[toKeep]
+DELTA_DIV=matrix(0,nrow(PSI_Annot),5)
+rownames(DELTA_PSI)=rownames(PSI_Annot)
 for(cond in 2:5){
-	DELTA_DIV[,cond]=abs(PSI_Annot[toKeep,paste('MeanPSI_',condIndex[cond],sep='')]-0.5)-abs(PSI_Annot[toKeep,paste('MeanPSI_',condIndex[1],sep='')]-0.5)
+	DELTA_DIV[,cond]=abs(PSI_Annot[,paste('MeanPSI_',condIndex[cond],sep='')]-0.5)-abs(PSI_Annot[,paste('MeanPSI_',condIndex[1],sep='')]-0.5)
 }
 
 
-TESTABLE=as.matrix(PSI_Annot[toKeep,paste('Testable',condIndex,sep='_')])
-SUPPORT=as.matrix(PSI_Annot[toKeep,paste('Support',condIndex,sep='_')])
-MEANPSI=as.matrix(PSI_Annot[toKeep,paste('MeanPSI',condIndex,sep='_')])
-PCTNA=as.matrix(PSI_Annot[toKeep,paste('PctNA',condIndex,sep='_')])
-JUNC=as.matrix(PSI_Annot[toKeep,paste('JuncCovered',condIndex,sep='_')])
+TESTABLE=as.matrix(PSI_Annot[,paste('Testable',condIndex,sep='_')])
+SUPPORT=as.matrix(PSI_Annot[,paste('Support',condIndex,sep='_')])
+MEANPSI=as.matrix(PSI_Annot[,paste('MeanPSI',condIndex,sep='_')])
+PCTNA=as.matrix(PSI_Annot[,paste('PctNA',condIndex,sep='_')])
+JUNC=as.matrix(PSI_Annot[,paste('JuncCovered',condIndex,sep='_')])
 
 # list fo genes with an AS event that pass our quality filter in a given condition
-testable_list=sapply(1:5,function(cond){unique(PSI_Annot_cond[TESTABLE[,cond],'gene_id'])})
+testable_list=sapply(1:5,function(cond){unique(PSI_Annot[TESTABLE[,cond],'gene_id'])})
 # list of AS event that pass our quality filter in a given condition
-testable_event_list=sapply(1:5,function(cond){unique(PSI_Annot_cond[TESTABLE[,cond],'event_id'])})
-GeneSymbols=PSI_Annot$symbol[toKeep]
-GeneIDs=PSI_Annot$gene_id[toKeep]
+testable_event_list=sapply(1:5,function(cond){unique(PSI_Annot[TESTABLE[,cond],'event_id'])})
+GeneSymbols=PSI_Annot$symbol
+GeneIDs=PSI_Annot$gene_id
 luq(unlist(testable_event_list)) # 16173 events
 luq(unlist(testable_list)) #[1] 4739 genes
 luq(setdiff(unlist(testable_event_list[-1]),testable_event_list[[1]])) # 3367 events
@@ -110,7 +111,7 @@ apply(SHANNON>SHANNON_1 & DSG,2,sum,na.rm=T)/apply(DSG,2,sum,na.rm=T)
 ##  generate lists of frequent AS events and DSG  ##
 #################@##################################
 
-TableS2=PSI_Annot_cond[c(1:8,grep('MeanPSI', colnames(PSI_Annot_cond)),grep('Support', colnames(PSI_Annot_cond)),grep('coding_type', colnames(PSI_Annot_cond)))]
+TableS2=PSI_Annot[c(1:8,grep('MeanPSI', colnames(PSI_Annot)),grep('Support', colnames(PSI_Annot)),grep('coding_type', colnames(PSI_Annot)))]
 colnames(TableS2)[grep('Support',colnames(TableS2))]=paste('gene_FPKM',condIndex,sep='_')
 DSE=apply(FDR<0.05 & abs(DELTA_PSI)>0.05 & TESTABLE_DIFF,2,ifelse,'yes','')
 for (i in 1:5){DSE[!TESTABLE_DIFF[,i],i]='n.d.'}
@@ -121,10 +122,11 @@ colnames(TESTABLE_yes)=paste('Alternatively_spliced_',condIndex,sep='')
 colnames(Pval)=paste('P-value_NS-',condIndex,sep='')
 colnames(FDR)=paste('FDR_NS-',condIndex,sep='')
 colnames(DELTA_PSI)=paste('Delta_PSI_NS-',condIndex,sep='')
+
 lFC=log2(1+TableS2[,grep('gene_FPKM',colnames(TableS2))])
 lFC=lFC[,-1]-lFC[,1]%o%rep(1,4)
 colnames(lFC)=gsub('gene_FPKM','log2FC',colnames(lFC))
-#colnames(SHANNON)=paste('ShannonEntropy_',condIndex,sep='_')
+
 TableS2=cbind(TableS2,TESTABLE_yes,Pval[,-1],FDR[,-1],DELTA_PSI[,-1],DSE[,-1],lFC,PCTNA,TESTABLE_DIFF_yes)
 TableS2$isDiffSpliced=ifelse(apply(DSE=='yes',1,any),'yes','')
 TableS2$maxlFC=apply(TableS2[,grepl('log2FC',colnames(TableS2))],1,max)
@@ -132,23 +134,11 @@ TableS2$maxlFC=apply(TableS2[,grepl('log2FC',colnames(TableS2))],1,max)
 TableS2$coding_type_REF_to_ALT=TableS2$coding_type
 TableS2$coding_type_ALT_to_REF=ifelse(TableS2$coding_type=='loss of function','gain of function',ifelse(TableS2$coding_type=='gain of function','loss of function',TableS2$coding_type))
 
+Gene_changes_percentage_of_coding_transcript = unique(TableS2$gene_id) %in% TableS2$gene_id[TableS2$coding_type%in%c('gain of function','loss of function') & TableS2$"isDiffSpliced"=='yes']
+Gene_changes_protein_isoform = unique(TableS2$gene_id)%in%TableS2$gene_id[TableS2$coding_type%in%c('modified protein') & TableS2$"isDiffSpliced"=='yes']
 
-table(unique(TableS2$gene_id)%in%TableS2$gene_id[TableS2$coding_type%in%c('gain of function','loss of function') & TableS2$"isDiffSpliced"=='yes'],unique(TableS2$gene_id)%in%TableS2$gene_id[TableS2$coding_type%in%c('modified protein') & TableS2$"isDiffSpliced"=='yes'])
+table(Gene_changes_percentage_of_coding_transcript,Gene_changes_protein_isoform)
 
-# load allGOterms table (containing go ids and matching gene ids)
-allGOTerms=as.data.frame(fread('allGOterms_EnsGRC37_13042017.txt'))
-
-GoToTest=list(immuneResponse='GO:0006955',
-	InnateImmuneResponse='GO:0045087',
-	AdaptiveImmuneResponse='GO:0002250',
-	AntiviralResponse='GO:0051607',
-	AntibacterialResponse='GO:0042742',
-	TF_DNAbinding='GO:0003700',
-	development='GO:0032502',
-	olfactory_receptors='GO:0004984')
-	
-GoToTest_genes=lapply(GoToTest,function(x){allGOterms$gene[allGOterms$go==x]})
-GoToTest_genes$all=unique(allGOterms$gene)
 TableS2$isImmune=ifelse(TableS2$gene_id%in%GoToTest_genes$immuneResponse,'yes','')
 TableS2$event_coord=gsub('ENSG[0-9]+;.*:[0-9XY]+:(.*):.*','\\1',TableS2$event_id)
 TableS2$empty=''
@@ -164,7 +154,7 @@ write.table(TableS2B,file=sprintf('%s/03_Analysis/Splicing/Papier_Splicing/V7/ta
 ###################################################################
 
 w=which(TESTABLE_DIFF,arr=T)
-CondDiffSpliceFull=cbind(PSI_Annot_cond[w[,1],],Pval=Pval[w],DeltaPSI=DELTA_PSI[w],cond=w[,2])
+CondDiffSpliceFull=cbind(PSI_Annot[w[,1],],Pval=Pval[w],DeltaPSI=DELTA_PSI[w],cond=w[,2])
 rownames(CondDiffSpliceFull)=NULL
 
 #### add info on immune VS non immune
@@ -172,7 +162,7 @@ CondDiffSpliceFull$isImmune=CondDiffSpliceFull$gene%in%GoToTest_genes$immuneResp
 
 #### add info on logFC (based one Gene Annot)
 ###### TODO: recode this from Support to improve clarity
-MeanExpr=log2(1+GeneAnnot[,10:14])
+MeanExpr=log2(1+GeneAnnot[,c("NS_mean", "LPS_mean", "PAM3_mean", "R848_mean", "Flu_mean")])
 lFC=MeanExpr[,-1]-MeanExpr[,1]%o%rep(1,4)
 CondDiffSpliceFull$lFC_gene=NA
 for(i in 2:5){
@@ -189,12 +179,12 @@ CondDiffSpliceFull$DeltaPSI_coding=CondDiffSpliceFull$DeltaPSI*ifelse(CondDiffSp
 # signifiant AS event only
 CondDiffSplice=CondDiffSpliceFull[which(CondDiffSpliceFull$FDR<0.05 & abs(CondDiffSpliceFull$DeltaPSI)>0.05),]
 
-save(PSI_cond,PSI_Annot_cond,FDR,DELTA_PSI,TESTABLE,TESTABLE_DIFF,Pval,CondDiffSplice,CondDiffSpliceFull,file=sprintf('%s/03_Analysis/Splicing/Papier_Splicing/V5/data/PSI_events_AllTypes_DEbyCond_MISO_clean_V5.Rdata',HOME))
+save(PSI_cond,PSI_Annot,FDR,DELTA_PSI,TESTABLE,TESTABLE_DIFF,Pval,CondDiffSplice,CondDiffSpliceFull,file=sprintf('%s/03_Analysis/Splicing/Papier_Splicing/V5/data/PSI_events_AllTypes_DEbyCond_MISO_clean_V5.Rdata',HOME))
 
 
-#################@##################################
+####################################################
 ##          Comparison between DEG and DSG        ##
-#################@##################################
+####################################################
 
 #### Number of DSG without DEG
 length(unique(CondDiffSpliceFull$gene[CondDiffSpliceFull$FDR<0.05 &  abs(CondDiffSpliceFull$DeltaPSI)>0.05 & abs(CondDiffSpliceFull$lFC_gene)<0.2]))
@@ -205,15 +195,15 @@ odds.ratio(table(CondDiffSpliceFull$FDR<0.05 &  abs(CondDiffSpliceFull$DeltaPSI)
 #            LowerCI       OR  UpperCI alpha             P
 # odds ratio 1.898261 2.008408 2.125205  0.05 1.951038e-135
 
-is_DSG=sapply(2:5,function(i){ifelse(unique(PSI_Annot$gene[toKeep])%in%CondDiffSpliceFull$gene[CondDiffSpliceFull$FDR<0.05 & abs(CondDiffSpliceFull$DeltaPSI)>0.05 & CondDiffSpliceFull$cond==i],'X','')})
+is_DSG=sapply(2:5,function(i){ifelse(unique(PSI_Annot$gene)%in%CondDiffSpliceFull$gene[CondDiffSpliceFull$FDR<0.05 & abs(CondDiffSpliceFull$DeltaPSI)>0.05 & CondDiffSpliceFull$cond==i],'X','')})
 TableS2B=read.table(sprintf('%s/03_Analysis/Splicing/Papier_Splicing/V5/tables/TableS2B.txt',HOME),sep='\t',header=T)
 lFC_event_TableS2=TableS2B[,grep('log2FC_',colnames(TableS2B))]
 rownames(lFC_event_TableS2)=TableS2B$event_id
 
-is_DEG=apply(lFC[match(unique(PSI_Annot$gene[toKeep]),rownames(lFC)),],2,function(x){y=cut(x,c(-Inf,-1,-0.5,-0.2,0.2,0.5,1,Inf)); levels(y)=c('---','--','-','','+','++','+++');as.character(y)})
-rownames(is_DEG)=unique(PSI_Annot$gene[toKeep])
+is_DEG=apply(lFC[match(unique(PSI_Annot$gene),rownames(lFC)),],2,function(x){y=cut(x,c(-Inf,-1,-0.5,-0.2,0.2,0.5,1,Inf)); levels(y)=c('---','--','-','','+','++','+++');as.character(y)})
+rownames(is_DEG)=unique(PSI_Annot$gene)
 
-TableS2C=data.frame(gene=unique(PSI_Annot$gene[toKeep]),symbol=G2S(unique(PSI_Annot$gene[toKeep])),is_DSG,is_DEG)
+TableS2C=data.frame(gene=unique(PSI_Annot$gene),symbol=G2S(unique(PSI_Annot$gene)),is_DSG,is_DEG)
 colnames(TableS2C)=c('gene','symbol','DSG_LPS','DSG_PAM3CSK4','DSG_R848','DSG_IAV','DEG_LPS','DEG_PAM3CSK4','DEG_R848','DEG_IAV')
 TableS2C$isDSG_nonDEG=ifelse((TableS2C$DEG_LPS=='' & TableS2C$DSG_LPS!='') | (TableS2C$DEG_PAM3CSK4=='' & TableS2C$DSG_PAM3CSK4!='') |(TableS2C$DEG_R848=='' & TableS2C$DSG_R848!='') | (TableS2C$DEG_IAV=='' & TableS2C$DSG_IAV!=''),'yes','')
 TableS2C$isDSG_nonDEG=gsub('^/|/$','',gsub(' +','/',paste(ifelse(TableS2C$DEG_LPS=='' & TableS2C$DSG_LPS!='','LPS',''),ifelse(TableS2C$DEG_PAM3CSK4=='' & TableS2C$DSG_PAM3CSK4!='','PAM3CSK4',''),ifelse(TableS2C$DEG_R848=='' & TableS2C$DSG_R848!='','R848',''),ifelse(TableS2C$DEG_IAV=='' & TableS2C$DSG_IAV!='','IAV',''))))
@@ -408,7 +398,6 @@ boxplot(FPKM_gene[S2G('NFKB1'),SampleAnnot$cond%in%c(1,cond)]~myCond,las=2,col=c
 boxplot(PSI_cond['ENSG00000109320;SE:4:103422945-103432037:103432106-103446669:+',SampleAnnot$cond%in%c(1,cond)]~myCond,las=2,col=colERC5[c(1,cond)],main='',las=1,axes=T,notch=T,ylim=c(0,1),outpch=16,cex=0.7)
 
 P_wilcox=By(CondDiffSpliceFull$DeltaPSI,paste(CondDiffSpliceFull$event_type,CondDiffSpliceFull$cond),function(x){wilcox.test(x)$p.value})
-
 
 
 ##################################

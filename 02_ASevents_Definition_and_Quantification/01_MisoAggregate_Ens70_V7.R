@@ -320,8 +320,6 @@ PSI_Annot$correlated_event_cluster=gsub(' ','_',PSI_Annot$correlated_event_clust
 length(unique(PSI_Annot$correlated_event_cluster[toKeep])) # 16173
 PSI_Annot$representative_event=PSI_Annot$event_id[toKeep][match(PSI_Annot$correlated_event_cluster,PSI_Annot$correlated_event_cluster[toKeep])]
 
-
-
 ###########################################################
 ###    Annotation of coding consequences of AS events   ###
 ###########################################################
@@ -407,7 +405,6 @@ ID_Coding$type=ifelse(ID_Coding$form0=='' & ID_Coding$form1!='','gain of functio
 PSI_Annot$coding_type=ID_Coding$type[match(PSI_Annot$event_id,ID_Coding$event_id)]
 PSI_Annot$coding_type[intersect(toKeep, which(is.na(PSI_Annot$coding_type)))]='no coding consequence'
 
-
 ###########################################################
 ###  Annotation of gain/loss of conserved splice sites  ###
 ###########################################################
@@ -437,7 +434,23 @@ PSI_Annot$conserved_site_GerpRS=ifelse(coding_type_Event$non_conserved_AS_site[m
                         ifelse(coding_type_Event$conserved_site_lost[mm], 'loss of conserved splice site',
                         "Other")))))))
 
+##########################################################
+##           Annotation of immune genes                 ##
+##########################################################
+allGOTerms=as.data.frame(fread('allGOterms_EnsGRC37_13042017.txt'))
 
+GoToTest=list(immuneResponse='GO:0006955',
+	InnateImmuneResponse='GO:0045087',
+	AdaptiveImmuneResponse='GO:0002250',
+	AntiviralResponse='GO:0051607',
+	AntibacterialResponse='GO:0042742',
+	TF_DNAbinding='GO:0003700',
+	development='GO:0032502',
+	olfactory_receptors='GO:0004984')
+GoToTest_genes=lapply(GoToTest,function(x){allGOterms$gene[allGOterms$go==x]})
+GoToTest_genes$all=unique(allGOterms$gene)
+
+PSI_Annot$isImmune=PSI_Annot$gene_id%in%GoToTest_genes$immuneResponse
 
 ##########################################################
 ### 		data cleaning, batch removal & PCA			##
